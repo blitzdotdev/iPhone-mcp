@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/blitzdotdev/ios-mcp/master/BlitzBlue.png" width="100" />
+  <img src="https://raw.githubusercontent.com/blitzdotdev/iPhone-mcp/master/BlitzBlue.png" width="100" />
   <br /><br />
   <p>Blitz MCP server that lets AI use an iPhone</p>
 
