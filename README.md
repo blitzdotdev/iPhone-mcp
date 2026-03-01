@@ -1,12 +1,13 @@
 <div align="center">
   <img src="BlitzBlue.png" width="100" />
-  <h1>@blitzdev/ios-mcp</h1>
   <p>MCP server that lets AI agents control iOS simulators and physical iPhones.</p>
 
   [![Website](https://img.shields.io/badge/blitz.dev-website-black)](https://blitz.dev/)
   [![Discord](https://img.shields.io/badge/discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/wJQ6dA95S6)
   [![npm](https://img.shields.io/npm/v/@blitzdev/ios-mcp?label=npm&color=blue)](https://www.npmjs.com/package/@blitzdev/ios-mcp)
 </div>
+
+# @blitzdev/ios-mcp
 
 <!-- NOTE: Video showing a 30-second demo of Claude Code tapping through an app on a simulator, scanning UI, and taking a screenshot -->
 
