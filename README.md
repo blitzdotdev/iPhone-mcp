@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/blitzdotdev/iPhone-mcp/master/BlitzBlue.png" width="100" />
+  <img src="https://raw.githubusercontent.com/blitzdotdev/iPhone-mcp/refs/heads/master/BlitzBlue.png" width="100" />
   <br /><br />
   <p>Blitz MCP server that lets AI use an iPhone</p>
 
@@ -8,7 +8,7 @@
   [![npm](https://img.shields.io/npm/v/@blitzdev/iphone-mcp?label=npm&color=blue)](https://www.npmjs.com/package/@blitzdev/iphone-mcp)
 </div>
 
-# @blitzdev/iphone-mcp
+# iPhone-mcp
 
 <!-- NOTE: Video showing a 30-second demo of Claude Code tapping through an app on a simulator, scanning UI, and taking a screenshot -->
 
