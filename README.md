@@ -1,66 +1,151 @@
 # blitz-ios-mcp
 
-MCP server that lets AI agents control iOS simulators and physical iPhones. Works with Claude Code and any MCP-compatible client.
+MCP server that lets AI agents control iOS simulators and physical iPhones. Works with Claude Code, Cursor, Codex, and any MCP-compatible AI agent.
+
+<!-- NOTE: Video showing a 30-second demo of Claude Code tapping through an app on a simulator, scanning UI, and taking a screenshot -->
+
+## Installation
+
+```bash
+npm install blitz-ios-mcp
+```
 
 ## Quick Start
 
+### System-wide (use in any project)
+
 ```bash
-npx blitz-ios-mcp --setup
+npx blitz-ios-mcp --setup-all
 ```
 
-This installs dependencies (idb, WebDriverAgent) and configures Claude Code to use the MCP server.
+This installs dependencies and configures `blitz-ios-mcp` for all your AI agents globally. It automatically sets up Claude Code, and if you have Cursor or Codex installed, those get configured too.
 
-## What It Does
+### Project-scoped (one project only)
 
-- **Tap, swipe, type** on iOS simulators and physical iPhones
-- **Scan UI elements** — find buttons, text fields, links with coordinates
-- **Take screenshots** — capture the current screen state
-- **Auto-detect devices** — finds booted simulators and connected iPhones
-- **Live viewer** — browser-based screen viewer for physical devices
+```bash
+cd your-project
+npx blitz-ios-mcp --setup-here
+```
 
-## Usage
+This prompts you to choose which AI agents to configure (Claude Code, Cursor, Codex) and writes the config files into your project directory. `blitz-ios-mcp` will only be available when you open an agent inside that directory.
 
-After setup, the MCP server starts automatically when Claude Code launches. The agent can:
+### Then just ask
 
-1. Discover available devices (`get_execution_context`)
-2. Find interactive elements (`scan_ui`)
-3. Interact with the device (`device_action`, `device_actions`)
-4. Verify results (`get_screenshot`, `describe_screen`)
+Open a new AI agent session and ask:
 
-## Tools
+```
+> scan the simulator screen and tell me what you see
+```
 
-| Tool | Description |
-|------|-------------|
-| `get_execution_context` | Discover available iOS devices |
-| `scan_ui` | Find interactive UI elements with coordinates |
-| `describe_screen` | Get full UI element hierarchy |
-| `device_action` | Execute tap, swipe, button press, text input |
-| `device_actions` | Execute multiple actions in sequence |
-| `get_screenshot` | Capture device screenshot |
-| `list_devices` | List simulators and physical devices |
-| `launch_app` | Launch app by bundle ID |
-| `list_apps` | List installed apps (simulator) |
+```
+> connect to my iPhone and test the login flow
+```
+
+```
+> find bugs in my app — tap around, try edge cases, report anything weird
+```
+
+<!-- NOTE: Video showing Claude Code responding to "test my app", scanning UI, tapping buttons, finding a bug, and screenshotting the result -->
+
+## What can it do?
+
+| Capability | Simulator | Physical iPhone |
+|---|---|---|
+| Tap, swipe, type text | Yes | Yes |
+| Press buttons (Home, Lock, Siri) | Yes | Yes |
+| Scan UI elements with coordinates | Yes | Yes |
+| Take screenshots | Yes | Yes |
+| List & launch installed apps | Yes | Yes |
+| Auto-detect devices | Yes | Yes |
+| Live screen viewer in browser | -- | Yes |
+
+<!-- NOTE: Image showing a split view — left side has Claude Code terminal with scan_ui output, right side shows the corresponding simulator screen with UI elements highlighted -->
+
+## Simulators
+
+Boot any iOS simulator, then ask your AI agent to interact with it. No extra setup needed beyond `--setup-all` or `--setup-here`.
+
+```
+> what apps are installed on the simulator?
+> launch Safari and go to example.com
+> take a screenshot
+```
+
+<!-- NOTE: Image showing terminal output of the list_apps tool with clean formatted app list -->
+
+## Physical iPhones
+
+Connect your iPhone via USB or make sure it's on the same Wi-Fi network (home/office networks work, public cafe Wi-Fi won't).
+
+**First-time setup** — your iPhone needs:
+1. **Developer Mode** enabled (Settings > Privacy & Security > Developer Mode)
+2. **Trust this computer** when prompted on the phone
+
+Then ask your agent:
+
+```
+> connect to my iPhone
+```
+
+The agent will build and install WebDriverAgent on your phone (takes 1-3 minutes the first time), then give you a URL like `http://localhost:5152?udid=...` — open it in your browser to see a live view of your phone screen.
+
+<!-- NOTE: Image showing the browser-based viewer with an iPhone screen displayed in a dark bezel frame -->
+
+## Example session
+
+```
+You:    test the checkout flow in my app
+Agent:  Let me scan the simulator to see what's on screen.
+
+        [calls scan_ui]
+
+        I can see the home screen. Let me launch your app first.
+
+        [calls launch_app with bundleId "com.myapp"]
+        [calls get_screenshot]
+
+        The app is open on the main screen. I see a "Shop" tab at the bottom.
+        Let me tap it and walk through the checkout flow.
+
+        [calls device_action: tap on "Shop" tab]
+        [calls scan_ui]
+
+        I see a list of products. Let me add one to cart...
+```
+
+<!-- NOTE: Video showing a full end-to-end testing session — agent launches app, navigates through screens, finds a UI bug, screenshots it, and reports the issue -->
+
+## MCP Tools reference
+
+These are the tools your AI agent can call:
+
+| Tool | What it does |
+|---|---|
+| `get_execution_context` | Find available simulators and iPhones |
+| `scan_ui` | Find tappable elements — buttons, links, text fields — with their coordinates |
+| `describe_screen` | Full UI element hierarchy (more detail than scan_ui) |
+| `device_action` | Tap, swipe, press buttons, type text, press keys |
+| `device_actions` | Run multiple actions in sequence |
+| `get_screenshot` | Save a screenshot and return the file path |
+| `list_devices` | List all simulators and physical devices |
+| `launch_app` | Launch an app by bundle ID |
+| `list_apps` | List installed apps |
+| `setup_device` | Build & install WebDriverAgent on a physical iPhone |
 
 ## Requirements
 
-- macOS with Xcode installed
-- Node.js >= 18
-- For simulators: idb (`fb-idb`)
-- For physical devices: WebDriverAgent, USB connection
+- macOS
+- Xcode (install from App Store or `xcode-select --install`)
+- Node.js 18+
+- Homebrew (for installing idb dependencies)
 
-## Physical Device Setup
+The `--setup-all` / `--setup-here` command handles installing everything else automatically.
 
-Physical devices require WebDriverAgent (WDA) running on the device. The `--setup` command handles this automatically:
+## Manual MCP configuration
 
-1. Installs `idb` and `idb_companion`
-2. Clones WebDriverAgent from GitHub
-3. Optionally builds `ax-scan` for fast simulator UI scanning
+If you'd rather configure things yourself:
 
-When using a physical device, the server starts a browser-based viewer at `http://localhost:5150` so you can see the device screen.
-
-## Manual Configuration
-
-If you prefer manual setup, add this to `~/.claude.json`:
+**Claude Code** — add to `~/.claude.json` (global) or `.mcp.json` (project):
 
 ```json
 {
@@ -72,6 +157,37 @@ If you prefer manual setup, add this to `~/.claude.json`:
   }
 }
 ```
+
+**Cursor** — add to `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (project):
+
+```json
+{
+  "mcpServers": {
+    "blitz-ios": {
+      "command": "npx",
+      "args": ["blitz-ios-mcp"]
+    }
+  }
+}
+```
+
+**Codex** — add to `~/.codex/config.toml` (global) or `.codex/config.toml` (project):
+
+```toml
+[mcp_servers.blitz-ios]
+command = "npx"
+args = ["blitz-ios-mcp"]
+```
+
+## Troubleshooting
+
+**"No booted simulator found"** — Open Simulator.app or run `xcrun simctl boot "iPhone 16"` first.
+
+**Physical device not detected** — Make sure Developer Mode is on, the phone is connected via USB, and you've tapped "Trust" on the phone.
+
+**WDA build fails** — Open Xcode > Settings > Accounts and make sure an Apple ID is signed in. Xcode needs a signing identity to build WDA.
+
+**"Connection refused" errors** — The idb companion may have crashed. Run `npx blitz-ios-mcp --setup-all` again to re-initialize.
 
 ## License
 

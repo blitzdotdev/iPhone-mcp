@@ -17,10 +17,12 @@ function printUsage(): void {
 blitz-ios-mcp v${VERSION}
 
 Usage:
-  blitz-ios-mcp           Start the MCP server (stdio)
-  blitz-ios-mcp --setup   Interactive setup (install dependencies, configure MCP)
-  blitz-ios-mcp --version Print version
-  blitz-ios-mcp --help    Show this help
+  blitz-ios-mcp              Start the MCP server (stdio)
+  blitz-ios-mcp --setup-all  Install deps + configure globally (Claude Code, Cursor, Codex)
+  blitz-ios-mcp --setup-here Install deps + configure for current directory
+  blitz-ios-mcp --setup      Interactive setup (prompts for scope)
+  blitz-ios-mcp --version    Print version
+  blitz-ios-mcp --help       Show this help
 `)
 }
 
@@ -34,7 +36,7 @@ async function prompt(question: string): Promise<string> {
   })
 }
 
-async function runSetup(): Promise<void> {
+async function runSetup(scope?: 'all' | 'here'): Promise<void> {
   const mcpHome = join(homedir(), '.blitz-ios-mcp')
   const blitzHome = join(homedir(), '.blitz')
 
@@ -163,22 +165,69 @@ async function runSetup(): Promise<void> {
     }
   }
 
-  // Step 6: Configure MCP
+  // Step 6: Configure MCP clients
   process.stderr.write('  [6/6] MCP configuration\n')
-  const answer = await prompt('\n  Install MCP config:\n    1. System-wide (~/.claude.json) [recommended]\n    2. Current directory only (.mcp.json)\n  Choose (1/2): ')
 
-  const mcpConfig = {
-    mcpServers: {
-      'blitz-ios': {
-        command: 'npx',
-        args: ['blitz-ios-mcp'],
-      },
-    },
+  const configured: string[] = []
+
+  if (scope === 'all') {
+    // Global: always configure Claude Code, silently try Cursor and Codex if their dirs exist
+    configured.push(...writeClaudeCodeConfig(join(homedir(), '.claude.json')))
+    if (existsSync(join(homedir(), '.cursor'))) {
+      configured.push(...writeCursorConfig(join(homedir(), '.cursor', 'mcp.json')))
+    }
+    if (existsSync(join(homedir(), '.codex'))) {
+      configured.push(...writeCodexConfig(join(homedir(), '.codex', 'config.toml')))
+    }
+  } else if (scope === 'here') {
+    // Project-scoped: ask which clients to configure
+    process.stderr.write('\n  Which AI agents should have access to blitz-ios-mcp in this project?\n')
+    process.stderr.write('    1. Claude Code (.mcp.json)\n')
+    process.stderr.write('    2. Cursor (.cursor/mcp.json)\n')
+    process.stderr.write('    3. Codex (.codex/config.toml)\n')
+    const answer = await prompt('  Enter choices (e.g. 1,2,3): ')
+    const choices = answer.split(/[,\s]+/).map(s => s.trim())
+
+    if (choices.includes('1') || choices.length === 0) {
+      configured.push(...writeClaudeCodeConfig(join(process.cwd(), '.mcp.json')))
+    }
+    if (choices.includes('2')) {
+      mkdirSync(join(process.cwd(), '.cursor'), { recursive: true })
+      configured.push(...writeCursorConfig(join(process.cwd(), '.cursor', 'mcp.json')))
+    }
+    if (choices.includes('3')) {
+      mkdirSync(join(process.cwd(), '.codex'), { recursive: true })
+      configured.push(...writeCodexConfig(join(process.cwd(), '.codex', 'config.toml')))
+    }
+  } else {
+    // Interactive --setup: ask scope first, then configure
+    const answer = await prompt('\n  Install MCP config:\n    1. System-wide (all projects) [recommended]\n    2. Current directory only\n  Choose (1/2): ')
+    if (answer === '2') {
+      configured.push(...writeClaudeCodeConfig(join(process.cwd(), '.mcp.json')))
+    } else {
+      configured.push(...writeClaudeCodeConfig(join(homedir(), '.claude.json')))
+      if (existsSync(join(homedir(), '.cursor'))) {
+        configured.push(...writeCursorConfig(join(homedir(), '.cursor', 'mcp.json')))
+      }
+      if (existsSync(join(homedir(), '.codex'))) {
+        configured.push(...writeCodexConfig(join(homedir(), '.codex', 'config.toml')))
+      }
+    }
   }
 
-  const configPath = answer === '2'
-    ? join(process.cwd(), '.mcp.json')
-    : join(homedir(), '.claude.json')
+  if (configured.length > 0) {
+    process.stderr.write(`\n  Configured: ${configured.join(', ')}\n`)
+  }
+  process.stderr.write('\n  Setup complete! Restart your AI agent to activate.\n\n')
+}
+
+function writeJsonMcpConfig(configPath: string): boolean {
+  const mcpServers = {
+    'blitz-ios': {
+      command: 'npx',
+      args: ['blitz-ios-mcp'],
+    },
+  }
 
   try {
     let existing: Record<string, unknown> = {}
@@ -189,18 +238,45 @@ async function runSetup(): Promise<void> {
       ...existing,
       mcpServers: {
         ...(existing.mcpServers as Record<string, unknown> ?? {}),
-        ...mcpConfig.mcpServers,
+        ...mcpServers,
       },
     }
     writeFileSync(configPath, JSON.stringify(merged, null, 2) + '\n')
-    process.stderr.write(`\n  Config written to ${configPath}\n`)
+    process.stderr.write(`    Written: ${configPath}\n`)
+    return true
   } catch (e) {
-    process.stderr.write(`\n  Warning: Could not write config: ${(e as Error).message}\n`)
-    process.stderr.write(`  Add this to ${configPath} manually:\n`)
-    process.stderr.write(`  ${JSON.stringify(mcpConfig, null, 2)}\n`)
+    process.stderr.write(`    Warning: Could not write ${configPath}: ${(e as Error).message}\n`)
+    return false
   }
+}
 
-  process.stderr.write('\n  Setup complete! Restart Claude Code to activate.\n\n')
+function writeClaudeCodeConfig(configPath: string): string[] {
+  return writeJsonMcpConfig(configPath) ? ['Claude Code'] : []
+}
+
+function writeCursorConfig(configPath: string): string[] {
+  return writeJsonMcpConfig(configPath) ? ['Cursor'] : []
+}
+
+function writeCodexConfig(configPath: string): string[] {
+  const tomlBlock = `\n[mcp_servers.blitz-ios]\ncommand = "npx"\nargs = ["blitz-ios-mcp"]\n`
+
+  try {
+    let existing = ''
+    if (existsSync(configPath)) {
+      existing = readFileSync(configPath, 'utf8')
+    }
+    if (existing.includes('[mcp_servers.blitz-ios]')) {
+      process.stderr.write(`    Codex config already has blitz-ios, skipping\n`)
+      return ['Codex']
+    }
+    writeFileSync(configPath, existing + tomlBlock)
+    process.stderr.write(`    Written: ${configPath}\n`)
+    return ['Codex']
+  } catch (e) {
+    process.stderr.write(`    Warning: Could not write ${configPath}: ${(e as Error).message}\n`)
+    return []
+  }
 }
 
 async function main(): Promise<void> {
@@ -213,6 +289,16 @@ async function main(): Promise<void> {
 
   if (args.includes('--version') || args.includes('-v')) {
     process.stderr.write(`blitz-ios-mcp v${VERSION}\n`)
+    process.exit(0)
+  }
+
+  if (args.includes('--setup-all')) {
+    await runSetup('all')
+    process.exit(0)
+  }
+
+  if (args.includes('--setup-here')) {
+    await runSetup('here')
     process.exit(0)
   }
 
