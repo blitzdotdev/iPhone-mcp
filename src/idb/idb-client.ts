@@ -40,6 +40,22 @@ export async function resolveBootedUdid(): Promise<string> {
   throw new Error('No booted simulator found')
 }
 
+function parseSimctlAppList(raw: string): { bundleId: string; name: string; type: 'System' | 'User' }[] {
+  const apps: { bundleId: string; name: string; type: 'System' | 'User' }[] = []
+  const entryRegex = /"([^"]+)"\s*=\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}/g
+  let match
+  while ((match = entryRegex.exec(raw)) !== null) {
+    const bundleId = match[1]
+    const block = match[2]
+    const nameMatch = block.match(/CFBundleDisplayName\s*=\s*(?:"([^"]+)"|([^;]+));/)
+    const typeMatch = block.match(/ApplicationType\s*=\s*(\w+);/)
+    const name = (nameMatch?.[1] ?? nameMatch?.[2] ?? bundleId).trim()
+    const type = typeMatch?.[1] === 'User' ? 'User' : 'System'
+    apps.push({ bundleId, name, type })
+  }
+  return apps
+}
+
 export class IDBClient {
   private static instances: Map<string, IDBClient> = new Map()
   private udid: string
@@ -135,7 +151,7 @@ export class IDBClient {
     const resolvedUdid = await this.getResolvedUdid()
     const companionArg = IDB_COMPANION_PATH ? `--companion-path ${IDB_COMPANION_PATH}` : ''
     const udidArg = `--udid ${resolvedUdid}`
-    const cmd = `${IDB_PATH} ${companionArg} ${udidArg} ${args}`.trim()
+    const cmd = `${IDB_PATH} ${companionArg} ${args} ${udidArg}`.trim()
     log('IDBClient', 'log', `[${this.udid}] Running direct: ${cmd}`)
     const { stdout, stderr } = await execAsync(cmd)
     if (stderr) log('IDBClient', 'log', `[${this.udid}] stderr: ${stderr}`)
@@ -247,12 +263,15 @@ export class IDBClient {
     return buffer
   }
 
-  async listApps(): Promise<string> {
-    return this.runDirect('list-apps --json')
+  async listApps(): Promise<{ bundleId: string; name: string; type: 'System' | 'User' }[]> {
+    const resolvedUdid = await this.getResolvedUdid()
+    const { stdout } = await execAsync(`xcrun simctl listapps ${resolvedUdid}`)
+    return parseSimctlAppList(stdout)
   }
 
   async launch(bundleId: string): Promise<void> {
-    await this.runDirect(`launch ${bundleId}`)
+    const resolvedUdid = await this.getResolvedUdid()
+    await execAsync(`xcrun simctl launch ${resolvedUdid} ${bundleId}`)
   }
 }
 

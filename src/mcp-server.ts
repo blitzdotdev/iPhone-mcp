@@ -611,16 +611,18 @@ After setup completes, use the returned udid for all subsequent tool calls. Also
           screenSize = await client.getWindowSize()
         } catch { /* unavailable */ }
 
+        const viewerUrl = `http://localhost:${viewerPort}?udid=${encodeURIComponent(udid)}`
+
         return {
           content: [{
             type: 'text' as const,
             text: JSON.stringify({
               status: 'connected',
               udid,
-              viewer_url: `http://localhost:${viewerPort}?udid=${encodeURIComponent(udid)}`,
+              viewer_url: viewerUrl,
               screen_size: screenSize,
               setup_log: progressMessages,
-            }, null, 2),
+            }, null, 2) + `\n\nIMPORTANT: Tell the user to open this URL to see the device screen: ${viewerUrl}`,
           }],
         }
       } catch (error) {
@@ -684,10 +686,22 @@ After setup completes, use the returned udid for all subsequent tool calls. Also
 
         const { getIDBClient } = await import('./idb/idb-client.js')
         const client = getIDBClient(udid)
-        const output = await client.listApps()
+        const apps = await client.listApps()
+
+        const userApps = apps.filter(a => a.type === 'User')
+        const systemApps = apps.filter(a => a.type === 'System')
+
+        let text = `User apps (${userApps.length}):\n`
+        for (const app of userApps) {
+          text += `  ${app.name} — ${app.bundleId}\n`
+        }
+        text += `\nSystem apps (${systemApps.length}):\n`
+        for (const app of systemApps) {
+          text += `  ${app.name} — ${app.bundleId}\n`
+        }
 
         return {
-          content: [{ type: 'text' as const, text: output }],
+          content: [{ type: 'text' as const, text: text.trim() }],
         }
       } catch (error) {
         return {

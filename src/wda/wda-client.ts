@@ -92,7 +92,17 @@ export class WDAClient {
           return this.request<T>(method, newPath, body, true)
         }
       }
-      throw new Error(`WDA request failed: ${method} ${path} -> ${response.status}: ${text}`)
+      let shortMessage = text
+      try {
+        const parsed = JSON.parse(text)
+        if (parsed?.value?.message) {
+          const msg = parsed.value.message as string
+          const nsDesc = msg.match(/NSLocalizedDescription=([^,}]+)/)
+          shortMessage = nsDesc ? nsDesc[1] : msg.split('UserInfo=')[0].trim()
+        }
+      } catch { /* not JSON, use raw text */ }
+      log('WDAClient', 'error', `WDA ${method} ${path} -> ${response.status}: ${text}`)
+      throw new Error(shortMessage)
     }
     return response.json() as Promise<T>
   }
