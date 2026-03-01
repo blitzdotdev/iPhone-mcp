@@ -1,5 +1,6 @@
 <div align="center">
   <img src="BlitzBlue.png" width="100" />
+  <br /><br />
   <p>MCP server that lets AI use an iPhone</p>
 
   [![Website](https://img.shields.io/badge/blitz.dev-website-black)](https://blitz.dev/)
