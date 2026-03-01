@@ -127,9 +127,7 @@ async function runSetup(scope?: 'all' | 'here'): Promise<void> {
     } catch { /* silent fallback */ }
   }
 
-  // Step 6: Configure MCP clients
-  process.stderr.write('  [6/6] MCP configuration\n')
-
+  // Configure MCP clients
   const configured: string[] = []
 
   if (scope === 'all') {
