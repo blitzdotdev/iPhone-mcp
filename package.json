@@ -21,6 +21,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
+    "@inquirer/checkbox": "^5.1.0",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "express": "^5.1.0",
     "ws": "^8.18.3",

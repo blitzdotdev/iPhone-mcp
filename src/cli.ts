@@ -6,6 +6,7 @@ import { homedir } from 'os'
 import { exec, execSync } from 'child_process'
 import { promisify } from 'util'
 import { createInterface } from 'readline'
+import checkbox from '@inquirer/checkbox'
 import { log } from './logger.js'
 
 const execAsync = promisify(exec)
@@ -180,22 +181,27 @@ async function runSetup(scope?: 'all' | 'here'): Promise<void> {
       configured.push(...writeCodexConfig(join(homedir(), '.codex', 'config.toml')))
     }
   } else if (scope === 'here') {
-    // Project-scoped: ask which clients to configure
-    process.stderr.write('\n  Which AI agents should have access to blitz-ios-mcp in this project?\n')
-    process.stderr.write('    1. Claude Code (.mcp.json)\n')
-    process.stderr.write('    2. Cursor (.cursor/mcp.json)\n')
-    process.stderr.write('    3. Codex (.codex/config.toml)\n')
-    const answer = await prompt('  Enter choices (e.g. 1,2,3): ')
-    const choices = answer.split(/[,\s]+/).map(s => s.trim())
+    // Project-scoped: checkbox prompt for which clients to configure
+    const choices = await checkbox<string>(
+      {
+        message: 'Which AI agents should have access to blitz-ios-mcp?',
+        choices: [
+          { name: 'Claude Code', value: 'claude-code', checked: true },
+          { name: 'Cursor', value: 'cursor' },
+          { name: 'Codex', value: 'codex' },
+        ],
+      },
+      { output: process.stderr },
+    )
 
-    if (choices.includes('1') || choices.length === 0) {
+    if (choices.includes('claude-code')) {
       configured.push(...writeClaudeCodeConfig(join(process.cwd(), '.mcp.json')))
     }
-    if (choices.includes('2')) {
+    if (choices.includes('cursor')) {
       mkdirSync(join(process.cwd(), '.cursor'), { recursive: true })
       configured.push(...writeCursorConfig(join(process.cwd(), '.cursor', 'mcp.json')))
     }
-    if (choices.includes('3')) {
+    if (choices.includes('codex')) {
       mkdirSync(join(process.cwd(), '.codex'), { recursive: true })
       configured.push(...writeCodexConfig(join(process.cwd(), '.codex', 'config.toml')))
     }
