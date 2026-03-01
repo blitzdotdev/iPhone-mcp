@@ -10,7 +10,16 @@
 
 # iPhone-mcp
 
+MCP server that lets AI agents control real iPhones and iPhone simulators on MacOS.
+Works with Claude Code, Cursor, Codex, OpenCode, and any MCP-compatible AI agent.
 <!-- NOTE: Video showing a 30-second demo of Claude Code tapping through an app on a simulator, scanning UI, and taking a screenshot -->
+
+## Requirements
+
+- macOS
+- Xcode (install from App Store or `xcode-select --install`)
+- Node.js 18+
+- Homebrew
 
 ## Installation
 
@@ -26,14 +35,14 @@ npm install @blitzdev/iphone-mcp
 npx @blitzdev/iphone-mcp --setup-all
 ```
 
-This installs dependencies and configures `@blitzdev/iphone-mcp` for all your AI agents. It automatically sets up Claude Code, and if you have Cursor, Codex, or OpenCode installed, those get configured too.
+This installs dependencies and configures `@blitzdev/iphone-mcp` for all your AI agents. It automatically sets up Claude Code, Cursor, Codex, OpenCode.
 
-NOTE: For Cursor, you need to enable the blitz-iphone MCP server in Cursor Settings
+<i>NOTE: For Cursor, you need to enable the blitz-iphone MCP server in Cursor Settings</i>
 
 ### Project-scoped (one project only)
 
 ```bash
-cd your-project
+cd <your project>
 npx @blitzdev/iphone-mcp --setup-here
 ```
 
@@ -71,19 +80,7 @@ Open a new AI agent session and ask:
 
 <!-- NOTE: Image showing a split view — left side has Claude Code terminal with scan_ui output, right side shows the corresponding simulator screen with UI elements highlighted -->
 
-## Simulators
-
-Boot any iPhone simulator, then ask your AI agent to interact with it. No extra setup needed beyond `--setup-all` or `--setup-here`.
-
-```
-> what apps are installed on the simulator?
-> launch Safari and go to example.com
-> take a screenshot
-```
-
-<!-- NOTE: Image showing terminal output of the list_apps tool with clean formatted app list -->
-
-## Physical iPhones
+## iPhones
 
 Connect your iPhone via USB or make sure it's on the same Wi-Fi network (home/office networks work, public cafe Wi-Fi won't).
 
@@ -100,6 +97,18 @@ Then ask your agent:
 The agent will build and install WebDriverAgent on your phone (takes 1-3 minutes the first time), then give you a URL like `http://localhost:5152?udid=...` — open it in your browser to see a live view of your phone screen.
 
 <!-- NOTE: Image showing the browser-based viewer with an iPhone screen displayed in a dark bezel frame -->
+
+## Simulators
+
+Boot any iPhone simulator, then ask your AI agent to interact with it. No extra setup needed beyond `--setup-all` or `--setup-here`.
+
+```
+> what apps are installed on the simulator?
+> launch Safari and go to example.com
+> take a screenshot
+```
+
+<!-- NOTE: Image showing terminal output of the list_apps tool with clean formatted app list -->
 
 ## Example session
 
@@ -141,15 +150,6 @@ These are the tools your AI agent can call:
 | `launch_app` | Launch an app by bundle ID |
 | `list_apps` | List installed apps |
 | `setup_device` | Build & install WebDriverAgent on a physical iPhone |
-
-## Requirements
-
-- macOS
-- Xcode (install from App Store or `xcode-select --install`)
-- Node.js 18+
-- Homebrew (for installing idb dependencies)
-
-The `--setup-all` / `--setup-here` command handles installing everything else automatically.
 
 ## Manual MCP configuration
 
