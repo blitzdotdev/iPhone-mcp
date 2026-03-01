@@ -1,6 +1,6 @@
 <div align="center">
   <img src="BlitzBlue.png" width="100" />
-  <p>MCP server that lets AI agents control iOS simulators and physical iPhones.</p>
+  <p>MCP server that lets AI use an iPhone</p>
 
   [![Website](https://img.shields.io/badge/blitz.dev-website-black)](https://blitz.dev/)
   [![Discord](https://img.shields.io/badge/discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/wJQ6dA95S6)
