@@ -123,12 +123,15 @@ export class WDAManager {
   }
 
   private async detectTeamId(): Promise<string> {
-    try {
-      const { stdout } = await execAsync('defaults read com.apple.dt.Xcode IDEProvisioningTeams', { env: childEnv() })
-      const match = stdout.match(/teamID\s*=\s*([A-Z0-9]{10})/)
-      if (match) return match[1]
-    } catch {
-      // Xcode prefs not available
+    // Try both keys: older Xcode uses IDEProvisioningTeams, newer versions use IDEProvisioningTeamByIdentifier
+    for (const key of ['IDEProvisioningTeams', 'IDEProvisioningTeamByIdentifier']) {
+      try {
+        const { stdout } = await execAsync(`defaults read com.apple.dt.Xcode ${key}`, { env: childEnv() })
+        const match = stdout.match(/teamID\s*=\s*([A-Z0-9]{10})/)
+        if (match) return match[1]
+      } catch {
+        // Key not available, try next
+      }
     }
     throw new Error('No development team found. Sign in to Xcode with your Apple ID first (Xcode -> Settings -> Accounts).')
   }
