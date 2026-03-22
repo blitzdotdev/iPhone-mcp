@@ -348,7 +348,7 @@ Use describe_after to see the screen state after all actions complete.`,
         })
 
         return {
-          content: [{ type: 'text' as const, text: resizedFile }],
+          content: [{ type: 'text' as const, text: `${resizedFile}\nFull resolution: ${rawFile} (${widthMatch![1]}x${heightMatch![1]})` }],
         }
       } catch (error) {
         return {
