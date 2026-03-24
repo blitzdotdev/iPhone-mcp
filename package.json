@@ -1,6 +1,6 @@
 {
   "name": "@blitzdev/iphone-mcp",
-  "version": "0.1.15",
+  "version": "0.1.17",
   "description": "MCP server for controlling iOS simulators and physical iPhones",
   "type": "module",
   "license": "MIT",
@@ -25,7 +25,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@blitzdev/iphone-mcp": "^0.1.14",
+    "@blitzdev/iphone-mcp": "^0.1.15",
     "@inquirer/checkbox": "^5.1.0",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "express": "^5.1.0",
