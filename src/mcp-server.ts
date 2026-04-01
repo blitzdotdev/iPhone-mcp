@@ -16,6 +16,7 @@ import { detectExecutionContext } from './execution-context.js'
 import { wdaManager } from './wda/wda-manager.js'
 import { childEnv } from './child-env.js'
 import { log } from './logger.js'
+import { emitTapGestureVisualization, emitSwipeGestureVisualization } from './gesture-visualization.js'
 
 const tapParamsSchema = z.object({
   x: z.number().describe('X coordinate to tap'),
@@ -60,6 +61,91 @@ const singleActionSchema = z.object({
   action: z.enum(['tap', 'swipe', 'button', 'input-text', 'key', 'key-sequence']).describe('Type of action to perform'),
   params: z.record(z.string(), z.unknown()).describe('Action-specific parameters'),
 })
+
+const referenceFrameCache = new Map<string, Promise<{ width: number; height: number }>>()
+const BOOTED_UDID_CACHE_TTL_MS = 5_000
+let cachedBootedUdid: { value: string; expiresAtMs: number } | null = null
+
+async function resolveActionUdid(udid: string): Promise<string> {
+  if (udid !== 'booted') return udid
+
+  const now = Date.now()
+  if (cachedBootedUdid && cachedBootedUdid.expiresAtMs > now) {
+    return cachedBootedUdid.value
+  }
+
+  const resolvedUdid = await resolveBootedUdid()
+  cachedBootedUdid = {
+    value: resolvedUdid,
+    expiresAtMs: now + BOOTED_UDID_CACHE_TTL_MS,
+  }
+  return resolvedUdid
+}
+
+async function resolveReferenceFrame(udid: string): Promise<{ width: number; height: number }> {
+  const cached = referenceFrameCache.get(udid)
+  if (cached) return cached
+
+  const pending = (async () => {
+    if (isPhysicalDeviceUdid(udid)) {
+      const client = await getDeviceClient(udid) as unknown as WDAClient
+      return await client.getWindowSize()
+    }
+
+    const axClient = AXScanClient.getInstance(udid)
+    return await axClient.getScreenSize()
+  })().catch((error) => {
+    referenceFrameCache.delete(udid)
+    throw error
+  })
+
+  referenceFrameCache.set(udid, pending)
+  return await pending
+}
+
+async function emitVisualizationForAction(params: {
+  action: 'tap' | 'swipe'
+  udid: string
+  actionCommand: string
+  actionIndex?: number
+  tap?: z.infer<typeof tapParamsSchema>
+  swipe?: z.infer<typeof swipeParamsSchema>
+}): Promise<void> {
+  try {
+    const referenceFrame = await resolveReferenceFrame(params.udid)
+
+    if (params.action === 'tap' && params.tap) {
+      emitTapGestureVisualization({
+        deviceId: params.udid,
+        x: params.tap.x,
+        y: params.tap.y,
+        durationMs: params.tap.duration ? Math.round(params.tap.duration * 1000) : undefined,
+        referenceWidth: referenceFrame.width,
+        referenceHeight: referenceFrame.height,
+        actionCommand: params.actionCommand,
+        actionIndex: params.actionIndex,
+      })
+      return
+    }
+
+    if (params.action === 'swipe' && params.swipe) {
+      emitSwipeGestureVisualization({
+        deviceId: params.udid,
+        x: params.swipe.fromX,
+        y: params.swipe.fromY,
+        x2: params.swipe.toX,
+        y2: params.swipe.toY,
+        durationMs: Math.round((params.swipe.duration ?? 0.3) * 1000),
+        referenceWidth: referenceFrame.width,
+        referenceHeight: referenceFrame.height,
+        actionCommand: params.actionCommand,
+        actionIndex: params.actionIndex,
+      })
+    }
+  } catch (error) {
+    log('GestureVisualization', 'warn', `Skipped live overlay event for ${params.action} on ${params.udid}: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
 
 export function createMcpServer(viewerPort: number) {
   const server = new McpServer({
@@ -142,18 +228,33 @@ Use describe_after to see the screen state after the action.`,
     async ({ action, params, udid = 'booted', describe_after }) => {
       log('MCP', 'log', `device_action action=${action} udid=${udid}`)
       try {
-        const client = await getDeviceClient(udid)
+        const resolvedUdid = await resolveActionUdid(udid)
+        const client = await getDeviceClient(resolvedUdid)
         let actionResult = 'Action completed successfully'
 
         switch (action) {
           case 'tap': {
             const p = tapParamsSchema.parse(params)
+            await emitVisualizationForAction({
+              action: 'tap',
+              udid: resolvedUdid,
+              actionCommand: 'device_action',
+              actionIndex: 0,
+              tap: p,
+            })
             await client.tap(p.x, p.y, p.duration)
             actionResult = `Tapped at (${p.x}, ${p.y})`
             break
           }
           case 'swipe': {
             const p = swipeParamsSchema.parse(params)
+            await emitVisualizationForAction({
+              action: 'swipe',
+              udid: resolvedUdid,
+              actionCommand: 'device_action',
+              actionIndex: 0,
+              swipe: p,
+            })
             await client.swipe(p.fromX, p.fromY, p.toX, p.toY, p.duration, p.delta)
             actionResult = `Swiped from (${p.fromX}, ${p.fromY}) to (${p.toX}, ${p.toY})`
             break
@@ -228,19 +329,34 @@ Use describe_after to see the screen state after all actions complete.`,
     async ({ actions, udid = 'booted', describe_after }) => {
       log('MCP', 'log', `device_actions count=${actions.length} udid=${udid}`)
       try {
-        const client = await getDeviceClient(udid)
+        const resolvedUdid = await resolveActionUdid(udid)
+        const client = await getDeviceClient(resolvedUdid)
         const results: string[] = []
 
-        for (const { action, params } of actions) {
+        for (const [index, { action, params }] of actions.entries()) {
           switch (action) {
             case 'tap': {
               const p = tapParamsSchema.parse(params)
+              await emitVisualizationForAction({
+                action: 'tap',
+                udid: resolvedUdid,
+                actionCommand: 'device_actions',
+                actionIndex: index,
+                tap: p,
+              })
               await client.tap(p.x, p.y, p.duration)
               results.push(`Tapped at (${p.x}, ${p.y})`)
               break
             }
             case 'swipe': {
               const p = swipeParamsSchema.parse(params)
+              await emitVisualizationForAction({
+                action: 'swipe',
+                udid: resolvedUdid,
+                actionCommand: 'device_actions',
+                actionIndex: index,
+                swipe: p,
+              })
               await client.swipe(p.fromX, p.fromY, p.toX, p.toY, p.duration, p.delta)
               results.push(`Swiped from (${p.fromX}, ${p.fromY}) to (${p.toX}, ${p.toY})`)
               break
@@ -348,7 +464,10 @@ Use describe_after to see the screen state after all actions complete.`,
         })
 
         return {
-          content: [{ type: 'text' as const, text: `${resizedFile}\nFull resolution: ${rawFile} (${widthMatch![1]}x${heightMatch![1]})` }],
+          content: [
+            { type: 'text' as const, text: rawFile },
+            { type: 'image' as const, data: (await fs.readFile(resizedFile)).toString('base64'), mimeType: 'image/png' },
+          ],
         }
       } catch (error) {
         return {
