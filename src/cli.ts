@@ -200,7 +200,7 @@ function writeJsonMcpConfig(configPath: string): boolean {
   const mcpServers = {
     'blitz-iphone': {
       command: 'npx',
-      args: ['@blitzdev/iphone-mcp'],
+      args: ['-y', '@blitzdev/iphone-mcp'],
     },
   }
 
@@ -264,7 +264,7 @@ function writeOpenCodeConfig(configPath: string): string[] {
 }
 
 function writeCodexConfig(configPath: string): string[] {
-  const tomlBlock = `\n[mcp_servers.blitz-iphone]\ncommand = "npx"\nargs = ["@blitzdev/iphone-mcp"]\n`
+  const tomlBlock = `\n[mcp_servers.blitz-iphone]\ncommand = "npx"\nargs = ["-y", "@blitzdev/iphone-mcp"]\n`
 
   try {
     let existing = ''

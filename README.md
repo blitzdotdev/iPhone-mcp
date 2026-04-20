@@ -164,7 +164,7 @@ If you'd rather configure things yourself:
   "mcpServers": {
     "blitz-iphone": {
       "command": "npx",
-      "args": ["@blitzdev/iphone-mcp"]
+      "args": ["-y", "@blitzdev/iphone-mcp"]
     }
   }
 }
@@ -177,7 +177,7 @@ If you'd rather configure things yourself:
   "mcpServers": {
     "blitz-iphone": {
       "command": "npx",
-      "args": ["@blitzdev/iphone-mcp"]
+      "args": ["-y", "@blitzdev/iphone-mcp"]
     }
   }
 }
@@ -188,7 +188,7 @@ If you'd rather configure things yourself:
 ```toml
 [mcp_servers.blitz-iphone]
 command = "npx"
-args = ["@blitzdev/iphone-mcp"]
+args = ["-y", "@blitzdev/iphone-mcp"]
 ```
 
 **OpenCode** — add to `opencode.json` in your project root:
